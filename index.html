@@ -1190,14 +1190,19 @@ document.querySelectorAll(".copy").forEach(function(b){
 /* ── Contact form ──────────────────────────────────────── */
 var form=document.getElementById("contactForm"), status=document.getElementById("form-status");
 var sendBtn=form.querySelector('button[type="submit"]');
+var FALLBACK_HTML='Email <a href="mailto:mohdnadeemsiraj@gmail.com">mohdnadeemsiraj@gmail.com</a> instead.';
 form.addEventListener("submit",function(e){
   e.preventDefault();
   sendBtn.disabled=true; sendBtn.style.opacity=".6"; sendBtn.style.cursor="wait";
   status.textContent="Sending…";
   status.style.color=C.violet;
   function reset(){ sendBtn.disabled=false; sendBtn.style.opacity=""; sendBtn.style.cursor=""; }
-  fetch(form.action,{ method:form.method, body:new FormData(form), headers:{Accept:"application/json"} })
+  var controller = window.AbortController ? new AbortController() : null;
+  var timedOut=false;
+  var timer = controller && setTimeout(function(){ timedOut=true; controller.abort(); },15000);
+  fetch(form.action,{ method:form.method, body:new FormData(form), headers:{Accept:"application/json"}, signal: controller && controller.signal })
     .then(function(res){
+      clearTimeout(timer);
       reset();
       if(res.ok){
         status.textContent="Message sent. I'll get back to you shortly.";
@@ -1205,13 +1210,14 @@ form.addEventListener("submit",function(e){
         form.reset();
         setTimeout(function(){ status.textContent=""; },6000);
       } else {
-        status.textContent="That is send. Email mohdnadeemsiraj@gmail.com instead.";
+        status.innerHTML="That didn't send. "+FALLBACK_HTML;
         status.style.color=C.magenta;
       }
     })
     .catch(function(){
+      clearTimeout(timer);
       reset();
-      status.textContent="No connection. Check your network and try again.";
+      status.innerHTML=(timedOut?"Taking too long to send.":"No connection.")+" "+FALLBACK_HTML;
       status.style.color=C.magenta;
     });
 });
